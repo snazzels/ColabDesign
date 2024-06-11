@@ -80,14 +80,28 @@ class _af_design:
   def run(self, num_recycles=None, num_models=None, sample_models=None, models=None,
           backprop=True, callback=None, model_nums=None, return_aux=False):
     '''run model to get outputs, losses and gradients'''
-    
+
     # pre-design callbacks
-    for fn in self._callbacks["design"]["pre"]: fn(self)
+    for fn in self._callbacks["design"]["pre"]:
+        fn(self)
 
     # decide which model params to use
     if model_nums is None:
       model_nums = self._get_model_nums(num_models, sample_models, models)
     assert len(model_nums) > 0, "ERROR: no model params defined"
+
+    #Create dir to store pdb of every step
+    os.makedirs('trajectory', exist_ok=True)
+
+    # Define a custom callback to save PDB files
+    def save_pdb_callback(*args,**kwargs):
+        filename = f"trajectory/model_step_{self._k}.pdb"
+        self.save_pdb(filename=filename, get_best=False)
+
+    # Include the custom callback in the post-design callbacks
+    if callback is None:
+        callback = []
+    callback.append(save_pdb_callback)
 
     # loop through model params
     auxs = []
@@ -106,7 +120,8 @@ class _af_design:
     self.aux["all"] = auxs
     
     # post-design callbacks
-    for fn in (self._callbacks["design"]["post"] + to_list(callback)): fn(self)
+    for fn in (self._callbacks["design"]["post"] + to_list(callback)):
+        fn(self)
 
     # update log
     self.aux["log"] = {**self.aux["losses"]}
@@ -393,73 +408,112 @@ class _af_design:
   def _mutate(self, seq, plddt=None, logits=None, mutation_rate=1):
     '''mutate random position'''
     seq = np.array(seq)
-    N,L = seq.shape
+    N, L = seq.shape
 
     # fix some positions
-    i_prob = np.ones(L) if plddt is None else np.maximum(1-plddt,0)
+    i_prob = np.ones(L) if plddt is None else np.maximum(1 - plddt, 0)
     i_prob[np.isnan(i_prob)] = 0
     if "fix_pos" in self.opt:
       if "pos" in self.opt:
         p = self.opt["pos"][self.opt["fix_pos"]]
-        seq[...,p] = self._wt_aatype_sub
+        seq[..., p] = self._wt_aatype_sub
       else:
         p = self.opt["fix_pos"]
-        seq[...,p] = self._wt_aatype[...,p]
+        seq[..., p] = self._wt_aatype[..., p]
       i_prob[p] = 0
-    
-    for m in range(mutation_rate):
+
+    for m in range(int(mutation_rate)):
       # sample position
-      # https://www.biorxiv.org/content/10.1101/2021.08.24.457549v1
-      i = np.random.choice(np.arange(L),p=i_prob/i_prob.sum())
+      i = np.random.choice(np.arange(L), p=i_prob / i_prob.sum())
 
       # sample amino acid
       logits = np.array(0 if logits is None else logits)
-      if logits.ndim == 3: logits = logits[:,i]
-      elif logits.ndim == 2: logits = logits[i]
-      a_logits = logits - np.eye(self._args["alphabet_size"])[seq[:,i]] * 1e8
+      if logits.ndim == 3:
+        logits = logits[:, i]
+      elif logits.ndim == 2:
+        logits = logits[i]
+      a_logits = logits - np.eye(self._args["alphabet_size"])[seq[:, i]] * 1e8
       a = categorical(softmax(a_logits))
 
       # return mutant
-      seq[:,i] = a
-    
+      seq[:, i] = a
+
+    # Handle fractional mutation rate
+    if mutation_rate < 1:
+      prob = (mutation_rate - int(mutation_rate))*10
+      if np.random.rand() < prob:
+        # sample position
+        i = np.random.choice(np.arange(L), p=i_prob / i_prob.sum())
+
+        # sample amino acid
+        logits = np.array(0 if logits is None else logits)
+        if logits.ndim == 3:
+          logits = logits[:, i]
+        elif logits.ndim == 2:
+          logits = logits[i]
+        a_logits = logits - np.eye(self._args["alphabet_size"])[seq[:, i]] * 1e8
+        a = categorical(softmax(a_logits))
+
+        # return mutant
+        seq[:, i] = a
+
     return seq
+
 
   def design_semigreedy(self, iters=100, tries=10, dropout=False,
                         save_best=True, seq_logits=None, e_tries=None, **kwargs):
-
-    '''semigreedy search'''    
-    if e_tries is None: e_tries = tries
+    '''semigreedy search'''
+    if e_tries is None:
+      e_tries = tries
 
     # get starting sequence
-    if hasattr(self,"aux"):
+    if hasattr(self, "aux"):
       seq = self.aux["seq"]["logits"].argmax(-1)
     else:
       seq = (self._params["seq"] + self._inputs["bias"]).argmax(-1)
 
     # bias sampling towards the defined bias
-    if seq_logits is None: seq_logits = 0
-    
-    model_flags = {k:kwargs.pop(k,None) for k in ["num_models","sample_models","models"]}
-    verbose = kwargs.pop("verbose",1)
+    if seq_logits is None:
+      seq_logits = 0
+
+    model_flags = {k: kwargs.pop(k, None) for k in ["num_models", "sample_models", "models"]}
+    verbose = kwargs.pop("verbose", 1)
 
     # get current plddt
     aux = self.predict(seq, return_aux=True, verbose=False, **model_flags, **kwargs)
     plddt = self.aux["plddt"]
     plddt = plddt[self._target_len:] if self.protocol == "binder" else plddt[:self._len]
 
+    # Store the initial loss
+    initial_loss = aux["loss"]
+    current_loss = initial_loss
+
+    # Function to normalize the loss for mutation rate calculation
+    def normalize_loss(loss, reference_loss):
+      rel_loss = (loss - reference_loss) / max(abs(reference_loss), 1e-8)
+      if rel_loss > 0:
+        norm_loss = 0
+      else:
+        norm_loss = abs(rel_loss)
+      return norm_loss
+
+
     # optimize!
     if verbose:
       print("Running semigreedy optimization...")
-    
+
     for i in range(iters):
       buff = []
       model_nums = self._get_model_nums(**model_flags)
-      num_tries = (tries+(e_tries-tries)*((i+1)/iters))
+      num_tries = (tries + (e_tries - tries) * ((i + 1) / iters))
       for t in range(int(num_tries)):
-        mut_seq = self._mutate(seq=seq, plddt=plddt,
-                               logits=seq_logits + self._inputs["bias"])
+        # Adjust the mutation rate based on the loss
+        normalized_loss = normalize_loss(current_loss, initial_loss)
+        mutation_rate = max(0.1, (1 - normalized_loss))
+
+        mut_seq = self._mutate(seq=seq, plddt=plddt, logits=seq_logits + self._inputs["bias"], mutation_rate=mutation_rate)
         aux = self.predict(seq=mut_seq, return_aux=True, model_nums=model_nums, verbose=False, **kwargs)
-        buff.append({"aux":aux, "seq":np.array(mut_seq)})
+        buff.append({"aux": aux, "seq": np.array(mut_seq)})
 
       # accept best
       losses = [x["aux"]["loss"] for x in buff]
@@ -471,7 +525,14 @@ class _af_design:
       # update plddt
       plddt = best["aux"]["plddt"]
       plddt = plddt[self._target_len:] if self.protocol == "binder" else plddt[:self._len]
+
+      # Update current loss
+      current_loss = best["aux"]["loss"]
+
       self._k += 1
+
+      if verbose:
+        print(f"Iteration {i + 1}/{iters}, Current loss: {current_loss:.4f}, Mutation rate: {mutation_rate:.4f}")
 
   def design_pssm_semigreedy(self, soft_iters=300, hard_iters=32, tries=10, e_tries=None,
                              ramp_recycles=True, ramp_models=True, **kwargs):
@@ -489,13 +550,10 @@ class _af_design:
       if ramp_models:
         num_models = len(kwargs.get("models",self._model_names))
         iters = hard_iters
-        for m in range(num_models):
-          if verbose and m > 0: print(f'Increasing number of models to {m+1}.')
 
-          kwargs["num_models"] = m + 1
-          kwargs["save_best"] = (m + 1) == num_models
-          self.design_semigreedy(iters, tries=tries, e_tries=e_tries, **kwargs)
-          if m < 2: iters = iters // 2
+        kwargs["num_models"] = 5
+        kwargs["save_best"] = 5 == num_models
+        self.design_semigreedy(iters, tries=tries, e_tries=e_tries, **kwargs)
       else:
         self.design_semigreedy(hard_iters, tries=tries, e_tries=e_tries, **kwargs)
 
@@ -528,23 +586,31 @@ class _af_design:
     # run!
     if verbose: print("Running MCMC with simulated annealing...")
     for i in range(steps):
+      #print(current_seq)
 
       # update temperature
       T = T_init * (np.exp(np.log(0.5) / half_life) ** i) 
 
       # mutate sequence
-      if i == 0:
+      if i in range(10):
         mut_seq = current_seq
       else:
         mut_seq = self._mutate(seq=current_seq, plddt=plddt,
                                logits=seq_logits + self._inputs["bias"],
                                mutation_rate=mutation_rate)
+      
+      print(mut_seq)
 
       # get loss
       model_nums = self._get_model_nums(**model_flags)
       aux = self.predict(seq=mut_seq, return_aux=True, verbose=False, model_nums=model_nums, **kwargs)
       loss = aux["log"]["loss"]
-  
+      print(f"Step:{i}, loss: {loss:.2f}, current_loss: {current_loss:.2f}")
+      
+      os.makedirs('steps', exist_ok=True)
+      if loss < 20:
+        filename = f"steps/model_step_{i}_loss_{loss:.0f}.pdb"
+        self.save_pdb(filename=filename, get_best=False)
       # decide
       delta = loss - current_loss
       if i == 0 or delta < 0 or np.random.uniform() < np.exp( -delta / T):
