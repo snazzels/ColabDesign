@@ -586,7 +586,6 @@ class _af_design:
     # run!
     if verbose: print("Running MCMC with simulated annealing...")
     for i in range(steps):
-      #print(current_seq)
 
       # update temperature
       T = T_init * (np.exp(np.log(0.5) / half_life) ** i) 
@@ -599,7 +598,6 @@ class _af_design:
                                logits=seq_logits + self._inputs["bias"],
                                mutation_rate=mutation_rate)
       
-      print(mut_seq)
 
       # get loss
       model_nums = self._get_model_nums(**model_flags)
