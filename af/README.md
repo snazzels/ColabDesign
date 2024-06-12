@@ -1,4 +1,33 @@
-# AfDesign (v1.1.1)
+## AfDesign (v1.1.1)
+
+### Setup
+I have installed ColabDesign within a mamba environment. Alternatively you can use conda, however the installation will take longer.
+All steps described below I have put together in bash script called `install.sh`.
+
+1) Create environment and activate it.
+```bash
+micromamba create -n design
+micromamba activate design
+```
+2) Install python and JAX (with cuda enabled). I have CUDA 11.8, which works with jax=0.4.23. The setup requires then requires Python 3.12 and scipy 1.12.0.
+   (https://github.com/google/jax/issues/20565)
+```bash
+micromamba install python=3.12
+micromamba install jax=0.4.23 --channel conda-forge
+```
+3) Install ColabDesign
+```bash
+pip install git+https://github.com/snazzels/ColabDesign.git
+```
+
+4) Download Alphafold weights.
+```bash
+mkdir params
+curl -fsSL https://storage.googleapis.com/alphafold/alphafold_params_2022-12-06.tar | tar x -C params
+```
+
+Below, you can find the README of the original repo.
+
 ### Google Colab
 <a href="https://colab.research.google.com/github/sokrypton/ColabDesign/blob/v1.1.1/af/design.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
