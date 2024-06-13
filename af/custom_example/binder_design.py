@@ -90,12 +90,15 @@ else:
 # Set optimizer for sequence optimization
 
 optimizer = "mcmc" #@param ["pssm_semigreedy", "3stage", "semigreedy", "pssm", "logits", "soft", "hard"]
-#@markdown - `pssm_semigreedy` - uses the designed PSSM to bias semigreedy opt. (Recommended)
-#@markdown - `3stage` - gradient based optimization (GD) (logits → soft → hard)
-#@markdown - `semigreedy` - tries X random mutations, accepts those that decrease loss
-#@markdown - `hard` - GD optimize one_hot(logits) inputs (discrete)
+#`pssm_semigreedy` - uses the designed PSSM to bias semigreedy opt. (Recommended by authors)
+#`my_pssm_semigreedy` - uses custom semigreedy
+#`3stage` - gradient based optimization (GD) (logits → soft → hard)
+#`semigreedy` - tries X random mutations, accepts those that decrease loss
+#`my_semigreedy` - decrease mutation rate after mutation with low loss
+#`hard` - GD optimize one_hot(logits) inputs (discrete)
+#`mcmc` - MCMC simulated annealing
 
-##advanced GD settings (only for 3stage and hard)
+##advanced GD settings (only for 3stage, hard and pssm_semigreedy)
 GD_method = "adam" #@param ["adabelief", "adafactor", "adagrad", "adam", "adamw", "fromage", "lamb", "lars", "noisy_sgd", "dpsgd", "radam", "rmsprop", "sgd", "sm3", "yogi"]
 learning_rate = 0.01 #@param {type:"raw"}
 norm_seq_grad = True
@@ -115,6 +118,14 @@ if optimizer == "3stage":
   model.design_3stage(120, 60, 10, **flags)
   pssm = softmax(model._tmp["seq_logits"],-1)
 
+if optimizer == "my_pssm_semigreedy":
+  model.my_design_pssm_semigreedy(120, 128, **flags)
+  pssm = softmax(model._tmp["seq_logits"],1)
+
+if optimizer == "my_semigreedy":
+  model.my_design_pssm_semigreedy(0, 256, **flags)
+  pssm = None
+
 if optimizer == "pssm_semigreedy":
   model.design_pssm_semigreedy(120, 128, **flags)
   pssm = softmax(model._tmp["seq_logits"],1)
@@ -122,6 +133,8 @@ if optimizer == "pssm_semigreedy":
 if optimizer == "semigreedy":
   model.design_pssm_semigreedy(0, 256, **flags)
   pssm = None
+
+
 
 if optimizer == "mcmc":
   model._design_mcmc(steps=1000, mutation_rate=1, T_init=0.01,half_life=200, **flags)

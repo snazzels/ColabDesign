@@ -54,8 +54,6 @@ class PeptideLoss:
         # Convert hotspot_res to zero-indexed
         self.hotspot_res = [(res - 1) for res in self.hotspot_res]
 
-        print(self.hotspot_res)
-
 
     def smooth_sigmoid(self, x, k=10):
         """
@@ -214,7 +212,6 @@ class PeptideLoss:
         n_residues = len(CA_atoms)
 
         peptide_res = list(range(max(0, n_residues - self.n_pep_res), n_residues))
-        print(peptide_res)
         center_peptide = self.compute_geometric_center(inputs, outputs, peptide_res)
         center_hotspot = self.compute_geometric_center(inputs, outputs, self.hotspot_res)
         distance = jnp.linalg.norm(center_peptide - center_hotspot)
