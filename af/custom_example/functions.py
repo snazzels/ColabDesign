@@ -40,8 +40,9 @@ def add_cyclic_offset(self, bug_fix=True):
 
 
 class PeptideLoss:
-    def __init__(self, n_pep_res=7, hotspot_res=None):
+    def __init__(self, n_pep_res=7, hotspot_res=None, bound=50):
         self.n_pep_res = n_pep_res
+        self.bound = bound
 
         if hotspot_res is None:
             raise ValueError("Please provide hotspot residues.")
@@ -106,7 +107,7 @@ class PeptideLoss:
 
     def compute_cis_penalty(self, angle_rad):
         """
-        Compute a penalty for an omega angle based on its deviation from the -50 to 50 degree range.
+        Compute a penalty for an omega angle based on its deviation from a given degree range (self.bound).
 
         Parameters:
         angle_rad : float
@@ -119,9 +120,9 @@ class PeptideLoss:
         angle_deg = jnp.degrees(angle_rad)
         angle_deg = (angle_deg + 180) % 360 - 180  # Wrap angle to [-180, 180]
 
-        dist_from_bound = jnp.minimum(jnp.abs(angle_deg - 50), jnp.abs(angle_deg + 50))
+        dist_from_bound = jnp.minimum(jnp.abs(angle_deg - self.bound), jnp.abs(angle_deg + self.bound))
         penalty = self.smooth_sigmoid(-dist_from_bound + 5)  # Adjust k for a sharper transition
-        return jnp.where(jnp.abs(angle_deg) <= 50, 1.0, penalty)
+        return jnp.where(jnp.abs(angle_deg) <= self.bound, 1.0, penalty)
 
     def cis_loss(self, inputs, outputs):
         """

@@ -20,17 +20,17 @@ from functions import *
 params_dir="/home/niklashalbwedl/henmount/apps"
 
 #PDB file of target
-pdb = "/home/niklashalbwedl/henmount/master/03_3UTQ/03_af_design/cleaned.pdb"
+pdb = "/home/niklashalbwedl/henmount/master/07_8JJS/02_af_design/A_cleaned.pdb"
 
 #set target chains and hotspot residues (from pocket search)
-target_chain = "A,B"
-target_hotspot = "A6,A8,A27,A29,A30,A211,A233,A235,A241,B340"
+target_chain = "A"
+target_hotspot = "A7,A9,A56,A58,A61,A62,A64,A68,A69,A71,A72,A78,A92,A95,A96,A98,A99,A102,A103"
 if target_hotspot == "": target_hotspot = None
 target_flexible = False
 
 #set binder length and initial AA sequence. set binder_seq = "" for random init. seq.
-binder_len = 7
-binder_seq = ""
+binder_len = 11
+binder_seq = "RHKPGTFEQLC"
 if len(binder_seq) > 0:
   binder_len = len(binder_seq)
 else:
@@ -43,7 +43,7 @@ cyclic_offset = True
 bugfix = True
 
 #initialize PeptideLoss (from functions)
-pep_loss = PeptideLoss(n_pep_res=binder_len, hotspot_res=target_hotspot)
+pep_loss = PeptideLoss(n_pep_res=binder_len, hotspot_res=target_hotspot, bound=100)
 
 #AF2 parameters (MCMC opt. uses only 1 model)
 use_multimer = True
@@ -67,7 +67,7 @@ if "x_prev" not in dir() or x != x_prev:
     num_recycles=num_recycles,
     recycle_mode="sample", loss_callback=[pep_loss.cis_loss,pep_loss.com_loss], data_dir=params_dir)
   model.prep_inputs(**x, ignore_missing=False)
-  model.opt["weights"]["cis"] = 0.5
+  model.opt["weights"]["cis"] = 1.0
   model.opt["weights"]["com_loss"] = 1.0
   print("weights", model.opt["weights"])
   x_prev = copy_dict(x)
@@ -134,10 +134,8 @@ if optimizer == "semigreedy":
   model.design_pssm_semigreedy(0, 256, **flags)
   pssm = None
 
-
-
 if optimizer == "mcmc":
-  model._design_mcmc(steps=1000, mutation_rate=1, T_init=0.01,half_life=200, **flags)
+  model._design_mcmc(steps=1000, mutation_rate=2, T_init=0.01,half_life=200, **flags)
 
 if optimizer == "pssm":
   model.design_logits(120, e_soft=1.0, num_models=1, ramp_recycles=True, **flags)
