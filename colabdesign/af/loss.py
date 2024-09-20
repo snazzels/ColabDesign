@@ -39,23 +39,51 @@ class _af_loss:
     zeros = jnp.zeros_like(mask)
     tL,bL = self._target_len, self._binder_len
     binder_id = zeros.at[-bL:].set(mask[-bL:])
-    if "hotspot" in opt:
+
+
+    if "hotspot" in opt and "hotspot_1" in opt and "hotspot_2" in opt:
+      print("Multiple chain optimization.")
       target_id = zeros.at[opt["hotspot"]].set(mask[opt["hotspot"]])
-      i_con_loss = get_con_loss(inputs, outputs, opt["i_con"], mask_1d=target_id, mask_1b=binder_id)
+      target_id_1 = zeros.at[opt["hotspot_1"]].set(mask[opt["hotspot_1"]])
+      i_con_loss_1 = get_con_loss(inputs, outputs, opt["i_con_1"], mask_1d=target_id_1, mask_1b=binder_id)
+      target_id_2 = zeros.at[opt["hotspot_2"]].set(mask[opt["hotspot_2"]])
+      i_con_loss_2 = get_con_loss(inputs, outputs, opt["i_con_2"], mask_1d=target_id_2, mask_1b=binder_id)
+    
+      # Update losses for multi-hotspot case
+      aux["losses"].update({
+          "i_con_1": i_con_loss_1,
+          "i_con_2": i_con_loss_2
+      })
+
+    elif "hotspot" in opt and "hotspot_1" not in opt and "hotspot_2" not in opt:
+      print("Single hotspot optimization.")
+      target_id = zeros.at[opt["hotspot"]].set(mask[opt["hotspot"]])
+      i_con_loss = get_con_loss(inputs, outputs, opt["i_con"], mask_1d=binder_id, mask_1b=target_id)
+    
+      # Update losses for single-hotspot case
+      aux["losses"].update({
+          "i_con": i_con_loss
+      })
+
     else:
+      print("No hotspots.")
       target_id = zeros.at[:tL].set(mask[:tL])
       i_con_loss = get_con_loss(inputs, outputs, opt["i_con"], mask_1d=binder_id, mask_1b=target_id)
+    
+      # Update losses for no-hotspot case
+      aux["losses"].update({
+          "i_con": i_con_loss
+      })
 
-    # unsupervised losses
+    # Unsupervised losses that are common for all cases
     aux["losses"].update({
       "plddt":   get_plddt_loss(outputs, mask_1d=binder_id), # plddt over binder
       "exp_res": get_exp_res_loss(outputs, mask_1d=binder_id),
       "pae":     get_pae_loss(outputs, mask_1d=binder_id), # pae over binder + interface
       "con":     get_con_loss(inputs, outputs, opt["con"], mask_1d=binder_id, mask_1b=binder_id),
-      # interface
-      "i_con":   i_con_loss,
-      "i_pae":   get_pae_loss(outputs, mask_1d=binder_id, mask_1b=target_id),
+      "i_pae":   get_pae_loss(outputs, mask_1d=binder_id, mask_1b=target_id)
     })
+
 
     # supervised losses
     if self._args["redesign"]:      
@@ -178,7 +206,8 @@ class _af_loss:
                "mask_2d": jnp.where(seq_mask_2d,mask_2d == False,0)}
       losses.update({
         "i_pae": get_pae_loss(outputs, **masks),
-        "i_con": get_con_loss(inputs, outputs, opt["i_con"], **masks),
+        "i_con_1": get_con_loss(inputs, outputs, opt["i_con_1"], **masks),
+        "i_con_2": get_con_loss(inputs, outputs, opt["i_con_2"], **masks),
       })
 
     aux["losses"].update(losses)

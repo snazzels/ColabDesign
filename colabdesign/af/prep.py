@@ -186,7 +186,7 @@ class _af_prep:
                    rm_binder_sc=True,
                    rm_template_ic=False,
                                       
-                   hotspot=None, ignore_missing=True, **kwargs):
+                   hotspot=None,hotspot_1=None,hotspot_2=None, ignore_missing=True, **kwargs):
     '''
     prep inputs for binder design
     ---------------------------------------------------
@@ -229,6 +229,14 @@ class _af_prep:
     if hotspot is not None:
       self.opt["hotspot"] = prep_pos(hotspot, **self._pdb["idx"])["pos"]
 
+    if hotspot_1 is not None:
+      self.opt["hotspot_1"] = prep_pos(hotspot_1, **self._pdb["idx"])["pos"]
+    
+    if hotspot_2 is not None:
+      self.opt["hotspot_2"] = prep_pos(hotspot_2, **self._pdb["idx"])["pos"]
+
+
+
     if redesign:
       # binder redesign
       self._wt_aatype = self._pdb["batch"]["aatype"][self._target_len:]
@@ -237,7 +245,7 @@ class _af_prep:
     else:
       # binder hallucination
       self._pdb["batch"] = make_fixed_size(self._pdb["batch"], num_res=sum(self._lengths))
-      self.opt["weights"].update({"plddt":0.1, "con":0.0, "i_con":1.0, "i_pae":0.0})
+      self.opt["weights"].update({"plddt":0.1, "con":0.0, "i_con_1":1.0,"i_con_2":1.0, "i_pae":0.0})
 
     # configure input features
     self._inputs = self._prep_features(num_res=sum(self._lengths), num_seq=1)

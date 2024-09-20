@@ -246,7 +246,7 @@ class _af_design:
   def _print_log(self, print_str=None, aux=None):
     if aux is None: aux = self.aux
     keys = ["models","recycles","hard","soft","temp","seqid","loss",
-            "seq_ent","mlm","helix","pae","i_pae","exp_res","con","i_con",
+            "seq_ent","mlm","helix","pae","i_pae","exp_res","con","i_con_1","i_con_2",
             "sc_fape","sc_rmsd","dgram_cce","fape","plddt","ptm"]
     
     if "i_ptm" in aux["log"]:
@@ -679,12 +679,17 @@ class _af_design:
       model_nums = self._get_model_nums(**model_flags)
       aux = self.predict(seq=mut_seq, return_aux=True, verbose=False, model_nums=model_nums, **kwargs)
       loss = aux["log"]["loss"]
-      print(f"Step:{i}, loss: {loss:.2f}, current_loss: {current_loss:.2f}")
+      i_ptm = aux["log"]["i_ptm"]
+      cis = aux["log"]["cis"]
+      pldt = aux["log"]["plddt"]
+      icon = aux["log"]["i_con"]
+      com = aux["log"]["com_loss"]
+
+      print(f"Step:{i}, loss: {loss:.2f}, current_loss: {current_loss:.2f}, i_ptm: {i_ptm:.2f}, plddt: {pldt:.2f}, cis: {cis:.2f}, i_con {icon:.2f}, com {com:.2f}")
       
       os.makedirs('steps', exist_ok=True)
-      if loss < 20:
-        filename = f"steps/model_step_{i}_loss_{loss:.0f}.pdb"
-        self.save_pdb(filename=filename, get_best=False)
+      filename = f"steps/step_{i}_loss_{loss:.0f}.pdb"
+      self.save_pdb(filename=filename, get_best=False)
       # decide
       delta = loss - current_loss
       if i == 0 or delta < 0 or np.random.uniform() < np.exp( -delta / T):
