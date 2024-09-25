@@ -20,17 +20,20 @@ from functions import *
 params_dir="/home/niklashalbwedl/henmount/apps"
 
 #PDB file of target
-pdb = "/home/niklashalbwedl/henmount/master/07_8JJS/02_af_design/A_cleaned.pdb"
+pdb = "/home/niklashalbwedl/niklas_mount/master/16_5IB2/02_pocket_analysis/cleaned.pdb"
 
 #set target chains and hotspot residues (from pocket search)
-target_chain = "A"
-target_hotspot = "A7,A9,A56,A58,A61,A62,A64,A68,A69,A71,A72,A78,A92,A95,A96,A98,A99,A102,A103"
+target_chain = "A,B,C"
+target_hotspot =  "A27,B339,A235,A211,A30,A241,B302,A6,A234,B341,B331,B334,A8,B333,B340,B332"
+target_hotspot_A = "A27,A235,A211,A30,A241,A6,A234,A8"
+target_hotspot_B = "B339,B302,B341,B331,B334,B333,B340,B332"
+
 if target_hotspot == "": target_hotspot = None
 target_flexible = False
 
 #set binder length and initial AA sequence. set binder_seq = "" for random init. seq.
-binder_len = 11
-binder_seq = "RHKPGTFEQLC"
+binder_len = 8
+binder_seq = ""
 if len(binder_seq) > 0:
   binder_len = len(binder_seq)
 else:
@@ -47,14 +50,16 @@ pep_loss = PeptideLoss(n_pep_res=binder_len, hotspot_res=target_hotspot, bound=1
 
 #AF2 parameters (MCMC opt. uses only 1 model)
 use_multimer = True
-num_recycles = 0 #@param ["0", "1", "3", "6"] {type:"raw"}
-num_models = 5 #@param ["1", "2", "3", "4", "5"]
+num_recycles = 3 #@param ["0", "1", "3", "6"] {type:"raw"}
+num_models = 1 #@param ["1", "2", "3", "4", "5"]
 
 #model parameters
 x = {"pdb_filename":pdb,
      "chain":target_chain,
      "binder_len":binder_len,
      "hotspot":target_hotspot,
+     "hotspot_1":target_hotspot_A,
+     "hotspot_2":target_hotspot_B,
      "use_multimer":use_multimer,
      "rm_target_seq":target_flexible}
 
@@ -65,10 +70,10 @@ if "x_prev" not in dir() or x != x_prev:
     protocol="binder",
     use_multimer=x["use_multimer"],
     num_recycles=num_recycles,
-    recycle_mode="sample", loss_callback=[pep_loss.cis_loss,pep_loss.com_loss], data_dir=params_dir)
-  model.prep_inputs(**x, ignore_missing=False)
-  model.opt["weights"]["cis"] = 1.0
-  model.opt["weights"]["com_loss"] = 1.0
+    recycle_mode="sample",loss_callback=pep_loss.com_loss, data_dir=params_dir)
+  model.prep_inputs(**x, rm_aa="W", ignore_missing=False)
+  model.opt["weights"]["plddt"] = 1.0
+  model.opt["weights"]["com_loss"] = 0.01
   print("weights", model.opt["weights"])
   x_prev = copy_dict(x)
   print("target length:", model._target_len)
@@ -89,7 +94,7 @@ else:
 
 # Set optimizer for sequence optimization
 
-optimizer = "mcmc" #@param ["pssm_semigreedy", "3stage", "semigreedy", "pssm", "logits", "soft", "hard"]
+optimizer = "pssm_semigreedy" #@param ["pssm_semigreedy", "3stage", "semigreedy", "pssm", "logits", "soft", "hard"]
 #`pssm_semigreedy` - uses the designed PSSM to bias semigreedy opt. (Recommended by authors)
 #`my_pssm_semigreedy` - uses custom semigreedy
 #`3stage` - gradient based optimization (GD) (logits → soft → hard)
@@ -135,7 +140,7 @@ if optimizer == "semigreedy":
   pssm = None
 
 if optimizer == "mcmc":
-  model._design_mcmc(steps=1000, mutation_rate=2, T_init=0.01,half_life=200, **flags)
+  model._design_mcmc(steps=1000, mutation_rate=1, T_init=0.01,half_life=200, **flags)
 
 if optimizer == "pssm":
   model.design_logits(120, e_soft=1.0, num_models=1, ramp_recycles=True, **flags)
