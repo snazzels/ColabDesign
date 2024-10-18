@@ -1,0 +1,12 @@
+{
+  "params_dir": "/home/niklashalbwedl/henmount/apps",
+  "pdb": "/home/niklashalbwedl/niklas_mount/master/03_3UTQ/02_pocket_analysis/dry_prot.pdb",
+  "target_chain": "A,B",
+  "target_hotspot_1": "A27,A6,A8,A30,A235,A211,A98,A234,A241,A99",
+  "target_hotspot_2": "B340,B332,B335,B334,B333",
+  "target_flexible": false,
+  "binder_len": 8,
+  "binder_seq": "",
+  "cyclic_offset": true,
+  "rm_aa": "W,C"
+}
