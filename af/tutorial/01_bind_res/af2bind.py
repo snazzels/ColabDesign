@@ -26,6 +26,7 @@ with open(config_file, "r") as f:
 
 # Extract parameters from the JSON file
 params_dir = config["params_dir"]
+af2bind_params_dir = config["af2bind_params_dir"]
 pdb_filename = config["pdb"]
 target_chain = config["target_chain"]
 
@@ -44,7 +45,7 @@ def af2bind(outputs, mask_sidechains=True, seed=0):
     model_type = f"split_nosc_pair_A_split_nosc_pair_B_{seed}"
   else:
     model_type = f"split_pair_A_split_pair_B_{seed}"
-  with open(f"/home/niklashalbwedl/henmount/apps/af2bind_params/attempt_7_2k_lam0-03/{model_type}.pickle","rb") as handle:
+  with open(f"{af2bind_params_dir}{model_type}.pickle","rb") as handle:
     params_ = pickle.load(handle)
   params_ = dict(**params_["~"], **params_["linear"])
   p = jax.tree_map(lambda x:np.asarray(x), params_)

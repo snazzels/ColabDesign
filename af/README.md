@@ -9,22 +9,36 @@ All steps described below I have put together in bash script called `install.sh`
 micromamba create -n design
 micromamba activate design
 ```
-2) Install python and JAX (with cuda enabled). I have CUDA 11.8, which works with jax=0.4.23. The setup requires then requires Python 3.12 and scipy 1.12.0.
-   (https://github.com/google/jax/issues/20565)
+2) Install python.
 ```bash
 micromamba install python=3.12
-micromamba install jax=0.4.23 --channel conda-forge
 ```
 3) Install ColabDesign
 ```bash
 pip install git+https://github.com/snazzels/ColabDesign.git
 ```
+4) Install jax (remove any other versions which might have been installed). I have CUDA 11.8, which works with jax=0.4.23. The setup requires then requires Python 3.12 and scipy 1.12.0.(https://github.com/google/jax/issues/20565)
+```bash
+micromamba remove jax
+micromamba install jax=0.4.23 --channel conda-forge
+```
 
-4) Download Alphafold weights.
+
+5) Download Alphafold weights.
 ```bash
 mkdir params
 curl -fsSL https://storage.googleapis.com/alphafold/alphafold_params_2022-12-06.tar | tar x -C params
 ```
+
+6) Download AF2BIND weights.
+```bash
+mkdir af2bind_params
+cd af2bind_params
+wget https://github.com/sokrypton/af2bind/raw/main/attempt_7_2k_lam0-03.zip -O attempt_7_2k_lam0-03.zip
+unzip attempt_7_2k_lam0-03.zip
+```
+
+
 
 Below, you can find the README of the original repo.
 

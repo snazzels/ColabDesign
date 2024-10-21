@@ -1,5 +1,6 @@
 {
   "params_dir": "/home/niklashalbwedl/henmount/apps",
+  "af2bind_params_dir": "/home/niklashalbwedl/henmount/apps/af2bind_params/attempt_7_2k_lam0-03/", 
   "pdb": "/home/niklashalbwedl/niklas_mount/master/03_3UTQ/02_pocket_analysis/dry_prot.pdb",
-  "target_chain": "A,B"
+  "target_chain": "A,B,C"
 }
