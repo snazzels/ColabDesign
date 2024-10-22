@@ -22,6 +22,10 @@ pip install git+https://github.com/snazzels/ColabDesign.git
 micromamba remove jax
 micromamba install jax=0.4.23 --channel conda-forge
 ```
+If you have CUDA 12 you can install jax by running:
+```bash
+pip install -U "jax[cuda12]"
+```
 
 
 5) Download Alphafold weights.
