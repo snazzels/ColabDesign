@@ -2,6 +2,7 @@ import random, os
 import jax
 import jax.numpy as jnp
 import numpy as np
+import io
 from colabdesign.af.alphafold.common import residue_constants
 from colabdesign.shared.utils import copy_dict, update_dict, Key, dict_to_str, to_float, softmax, categorical, to_list, copy_missing
 
@@ -97,6 +98,7 @@ class _af_design:
     def save_pdb_callback(*args,**kwargs):
         filename = f"trajectory/model_step_{self._k}.pdb"
         self.save_pdb(filename=filename, get_best=False)
+
 
     # Include the custom callback in the post-design callbacks
     if callback is None:
@@ -254,6 +256,8 @@ class _af_design:
         keys.append("i_ptm")
       else:
         aux["log"].pop("i_ptm")
+    if "pdb_string" in aux:
+        keys.append("pdb_string")
 
     print(dict_to_str(aux["log"], filt=self.opt["weights"],
                       print_str=print_str, keys=keys+["rmsd"], ok=["plddt","rmsd"]))

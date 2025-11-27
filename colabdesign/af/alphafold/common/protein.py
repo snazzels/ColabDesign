@@ -19,6 +19,7 @@ from typing import Any, Mapping, Optional
 from colabdesign.af.alphafold.common import residue_constants
 from Bio.PDB import PDBParser
 import numpy as np
+import jax.numpy as jnp
 
 FeatureDict = Mapping[str, np.ndarray]
 ModelOutput = Mapping[str, Any]  # Is a nested dict.
@@ -219,7 +220,7 @@ def from_prediction(features: FeatureDict, result: ModelOutput,
   """
   fold_output = result['structure_module']
   if b_factors is None:
-    b_factors = np.zeros_like(fold_output['final_atom_mask'])
+    b_factors = jnp.zeros_like(fold_output['final_atom_mask'])
 
   return Protein(
       aatype=features['aatype'][0],
